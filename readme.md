@@ -33,10 +33,50 @@ Official documentation [is located here](https://laravel.com/docs/homestead).
 To keep any in-development changes separate from other Homestead installations, create a new project and install
 Homestead from composer, forcing it to use a git checkout.
 
-```
-$ mkdir homestead && \
-    cd homestead && \
-    composer require --prefer-source laravel/homestead:dev-main
+```shell
+mkdir homestead && \
+cd homestead && \
+composer require --prefer-source laravel/homestead:dev-main
 ```
 
 After it's complete, `vendor/laravel/homestead` will be a git checkout and can be used normally.
+
+## 克隆
+
+```shell
+git clone -b develop https://github.com/pu-explore/homestead.git
+```
+
+## 改变内容
+
+### 添加可配置软件源：`sources`
+
+> 配置软件源，可防止因网络问题无法使用
+
+```yaml
+# Homestead.yaml
+sources: "http://mirrors.163.com"
+ip: "192.168.10.10"
+memory: 2048
+```
+
+> 国内软件源地址
+
+- 网易：http://mirrors.163.com
+- 阿里：http://mirrors.aliyun.com
+- 清华：https://mirrors.tuna.tsinghua.edu.cn
+- 中科大：https://mirrors.ustc.edu.cn
+
+### 多站点时可配置IP默认站点：`default`
+
+```yaml
+# Homestead.yaml
+sites:
+    - map: laravel.box
+      to: /home/vagrant/code/laravel/public
+    - map: lumen.box
+      to: /home/vagrant/code/lumen/public
+      default: true
+```
+
+> 配置默认站点，可实现局域网内通过IP:8000直接访问对应的站点，而无需设置域名

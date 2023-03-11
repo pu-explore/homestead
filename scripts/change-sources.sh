@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 new_sources="$1"
-old_sources="http://archive.ubuntu.com"
+old_sources="http://us.archive.ubuntu.com"
 if [[ -f /home/vagrant/.homestead-features/sources ]]; then
     old_sources=$(cat /home/vagrant/.homestead-features/sources)
 fi

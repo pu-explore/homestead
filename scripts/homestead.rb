@@ -19,13 +19,13 @@ class Homestead
     config.vm.define settings['name'] ||= 'homestead'
     config.vm.box = settings['box'] ||= 'laravel/homestead'
     unless settings.has_key?('SpeakFriendAndEnter')
-      config.vm.box_version = settings['version'] ||= '>= 11.0.0, < 12.0.0'
+      config.vm.box_version = settings['version'] ||= '>= 13.0.0, < 14.0.0'
     end
     config.vm.hostname = settings['hostname'] ||= 'homestead'
 
     # Configure A Private Network IP
     if settings['ip'] != 'autonetwork'
-      config.vm.network :private_network, ip: settings['ip'] ||= '192.168.10.10'
+      config.vm.network :private_network, ip: settings['ip'] ||= '192.168.56.56'
     else
       config.vm.network :private_network, ip: '0.0.0.0', auto_network: true
     end
@@ -45,6 +45,7 @@ class Homestead
       vb.customize ['modifyvm', :id, '--natdnsproxy1', 'on']
       vb.customize ['modifyvm', :id, '--natdnshostresolver1', settings['natdnshostresolver'] ||= 'on']
       vb.customize ['modifyvm', :id, '--ostype', 'Ubuntu_64']
+
       if settings.has_key?('gui') && settings['gui']
         vb.gui = true
       end
@@ -53,6 +54,10 @@ class Homestead
       # the guest operating system.
       if settings.has_key?('paravirtprovider') && settings['paravirtprovider']
         vb.customize ['modifyvm', :id, '--paravirtprovider', settings['paravirtprovider'] ||= 'kvm']
+      end
+      
+      if Vagrant::Util::Platform.windows?
+        vb.customize ["setextradata", :id, "VBoxInternal2/SharedFoldersEnableSymlinksCreate/v-root", "1"]
       end
     end
 
@@ -101,6 +106,21 @@ class Homestead
       v.update_guest_tools = settings['update_parallels_tools'] ||= false
       v.memory = settings['memory'] ||= 2048
       v.cpus = settings['cpus'] ||= 1
+    end
+    
+    # Configure libvirt settings
+    config.vm.provider "libvirt" do |libvirt|
+      libvirt.default_prefix = ''
+      libvirt.memory = settings["memory"] ||= "2048"
+      libvirt.cpu_model = settings["cpus"] ||= "1"
+      libvirt.nested = "true"
+      libvirt.disk_bus = "virtio"
+      libvirt.machine_type = "q35"
+      libvirt.disk_driver :cache => "none"
+      libvirt.memorybacking :access, :mode => 'shared'
+      libvirt.nic_model_type = "virtio"
+      libvirt.driver = "kvm"
+      libvirt.qemu_use_session = false
     end
 
     # Standardize Ports Naming Schema
@@ -154,7 +174,7 @@ class Homestead
       end
       settings['keys'].each do |key|
         if File.exist? File.expand_path(key)
-          config.vm.provision "setting authorize permissions", type: "shell" do |s|
+          config.vm.provision "setting authorize permissions for #{key.split('/').last}", type: "shell" do |s|
             s.privileged = false
             s.inline = "echo \"$1\" > /home/vagrant/.ssh/$2 && chmod 600 /home/vagrant/.ssh/$2"
             s.args = [File.read(File.expand_path(key)), key.split('/').last]
@@ -169,7 +189,7 @@ class Homestead
     # Copy User Files Over to VM
     if settings.include? 'copy'
       settings['copy'].each do |file|
-        config.vm.provision "file", type: "file" do |f|
+        config.vm.provision 'file' do |f|
           f.source = File.expand_path(file['from'])
           f.destination = file['to'].chomp('/') + '/' + file['from'].split('/').last
         end
@@ -184,6 +204,10 @@ class Homestead
 
           if ENV['VAGRANT_DEFAULT_PROVIDER'] == 'hyperv'
             folder['type'] = 'smb'
+          end
+
+          if ENV['VAGRANT_DEFAULT_PROVIDER'] == 'libvirt'
+            folder['type'] ||= 'virtiofs'
           end
 
           if folder['type'] == 'nfs'
@@ -212,6 +236,11 @@ class Homestead
           end
         end
       end
+    end
+
+    # use virtiofs for /vagrant mount when using libvirt provider
+    if ENV['VAGRANT_DEFAULT_PROVIDER'] == 'libvirt'
+      config.vm.synced_folder "./", "/vagrant", type: "virtiofs"
     end
 
     # Change PHP CLI version based on configuration
@@ -399,7 +428,7 @@ class Homestead
               site['to'],                 # $2
               site['port'] ||= http_port, # $3
               site['ssl'] ||= https_port, # $4
-              site['php'] ||= '8.0',      # $5
+              site['php'] ||= '8.2',      # $5
               params ||= '',              # $6
               site['xhgui'] ||= '',       # $7
               site['exec'] ||= 'false',   # $8
@@ -540,13 +569,23 @@ class Homestead
         end
 
         config.vm.provision 'shell' do |s|
+          s.inline = "echo \"\nenv[$1] = '$2'\" >> /etc/php/8.1/fpm/pool.d/www.conf"
+          s.args = [var['key'], var['value']]
+        end
+
+        config.vm.provision 'shell' do |s|
+          s.inline = "echo \"\nenv[$1] = '$2'\" >> /etc/php/8.2/fpm/pool.d/www.conf"
+          s.args = [var['key'], var['value']]
+        end
+
+        config.vm.provision 'shell' do |s|
           s.inline = "echo \"\n# Set Homestead Environment Variable\nexport $1=$2\" >> /home/vagrant/.profile"
           s.args = [var['key'], var['value']]
         end
       end
 
       config.vm.provision 'shell' do |s|
-        s.inline = 'service php5.6-fpm restart;service php7.0-fpm restart;service  php7.1-fpm restart; service php7.2-fpm restart; service php7.3-fpm restart; service php7.4-fpm restart; service php8.0-fpm restart;'
+        s.inline = 'service php5.6-fpm restart;service php7.0-fpm restart;service  php7.1-fpm restart; service php7.2-fpm restart; service php7.3-fpm restart; service php7.4-fpm restart; service php8.0-fpm restart; service php8.1-fpm restart; service php8.2-fpm restart;'
       end
     end
 
@@ -682,6 +721,10 @@ class Homestead
         if enabled_databases.include? 'postgresql'
           Homestead.backup_postgres(database, "#{dir_prefix}/postgres_backup", config)
         end
+        # Backup MongoDB
+        if enabled_databases.include? 'mongodb'
+          Homestead.backup_mongodb(database, "#{dir_prefix}/mongodb_backup", config)
+        end
       end
     end
 
@@ -709,6 +752,14 @@ class Homestead
     config.trigger.before :destroy do |trigger|
       trigger.warn = "Backing up postgres database #{database}..."
       trigger.run_remote = {inline: "mkdir -p #{dir}/#{now} && echo localhost:5432:#{database}:homestead:secret > ~/.pgpass && chmod 600 ~/.pgpass && pg_dump -U homestead -h localhost #{database} > #{dir}/#{now}/#{database}-#{now}.sql"}
+    end
+  end
+
+  def self.backup_mongodb(database, dir, config)
+    now = Time.now.strftime("%Y%m%d%H%M")
+    config.trigger.before :destroy do |trigger|
+      trigger.warn = "Backing up mongodb database #{database}..."
+      trigger.run_remote = {inline: "mkdir -p #{dir}/#{now} && mongodump --db #{database} --out #{dir}/#{now}"}
     end
   end
 end

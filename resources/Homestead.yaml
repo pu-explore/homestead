@@ -1,5 +1,6 @@
 ---
-ip: "192.168.56.56"
+#sources: "http://cn.archive.ubuntu.com"
+ip: "192.168.56.10"
 memory: 2048
 cpus: 2
 provider: virtualbox

@@ -41,42 +41,48 @@ composer require --prefer-source laravel/homestead:dev-main
 
 After it's complete, `vendor/laravel/homestead` will be a git checkout and can be used normally.
 
-## 克隆
+## clone
 
 ```shell
-git clone -b develop https://github.com/pu-explore/homestead.git
+git clone https://github.com/pu-explore/homestead.git
 ```
 
-## 改变内容
+## New function
 
-### 添加可配置软件源：`sources`
+### Add configurable software repositories：`sources`
 
-> 配置软件源，可防止因网络问题无法使用
+> Configure the source_list to prevent unavailability due to network issues
 
 ```yaml
 # Homestead.yaml
-sources: "http://mirrors.163.com"
-ip: "192.168.10.10"
+sources: "http://cn.archive.ubuntu.com"
+ip: "192.168.56.10"
 memory: 2048
 ```
 
-> 国内软件源地址
+> China source_list address
 
 - 网易：http://mirrors.163.com
 - 阿里：http://mirrors.aliyun.com
 - 清华：https://mirrors.tuna.tsinghua.edu.cn
 - 中科大：https://mirrors.ustc.edu.cn
 
-### 多站点时可配置IP默认站点：`default`
+### You can configure the vue site：`type: vue`
+
+### When multi-site, you can configure the IP default site：`default: true`
 
 ```yaml
 # Homestead.yaml
 sites:
     - map: laravel.box
       to: /home/vagrant/code/laravel/public
+    - map: vue.box
+      to: /home/vagrant/code/vue/dist
+      xhgui: admin
+      type: vue
     - map: lumen.box
       to: /home/vagrant/code/lumen/public
       default: true
 ```
 
-> 配置默认站点，可实现局域网内通过IP:8000直接访问对应的站点，而无需设置域名
+> Configure the default site to directly access the corresponding site through IP in the LAN without domain name access

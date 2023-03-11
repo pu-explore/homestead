@@ -41,8 +41,8 @@ listen_80="${3:-80}"
 listen_443="${4:-443} ssl http2"
 server_name=".$1"
 if [[ "${11}" != "false" ]]; then
-    listen_80="80 default_server"
-    listen_443="[::]:80 default_server"
+    listen_80="${3:-80} default_server"
+    listen_443="${4:-443} default_server"
     server_name="_"
 fi
 
